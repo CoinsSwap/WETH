@@ -1,6 +1,6 @@
 {
-  "name": "WETH",
-  "version": "1.0.0",
+  "name": "@coinsswap/WETH",
+  "version": "0.1.0",
   "description": "Wrapped Ether js utils",
   "main": "index.js",
   "module": "src/index.js",
@@ -10,7 +10,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/CoinsSwap/WETH.git"

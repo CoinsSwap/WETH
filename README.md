@@ -1,2 +1,2 @@
 # WETH
- Wrapped Ether js utils
+ Wrapped Ether utils
