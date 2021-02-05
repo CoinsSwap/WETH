@@ -1,0 +1,17 @@
+os:
+  - linux
+  - windows
+  - osx
+
+language: node_js
+node_js:
+- 14
+
+script:
+  - npm run c
+
+after_success:
+  - node deploy.js success $WEBHOOK_URL
+
+after_failure:
+  - node deploy.js failure $WEBHOOK_URL
