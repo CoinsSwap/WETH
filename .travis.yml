@@ -9,6 +9,7 @@ node_js:
 
 script:
   - npm run c
+  - npm run test
 
 after_success:
   - node deploy.js success $WEBHOOK_URL
