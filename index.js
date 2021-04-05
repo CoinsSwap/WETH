@@ -313,7 +313,7 @@ var _nodeResolve_empty$1 = /*#__PURE__*/Object.freeze({
   'default': _nodeResolve_empty
 });
 
-var require$$0 = /*@__PURE__*/getAugmentedNamespace(_nodeResolve_empty$1);
+var require$$0$1 = /*@__PURE__*/getAugmentedNamespace(_nodeResolve_empty$1);
 
 var bn = createCommonjsModule(function (module) {
 (function (module, exports) {
@@ -367,7 +367,11 @@ var bn = createCommonjsModule(function (module) {
 
   var Buffer;
   try {
-    Buffer = require$$0.Buffer;
+    if (typeof window !== 'undefined' && typeof window.Buffer !== 'undefined') {
+      Buffer = window.Buffer;
+    } else {
+      Buffer = require$$0$1.Buffer;
+    }
   } catch (e) {
   }
 
@@ -408,23 +412,19 @@ var bn = createCommonjsModule(function (module) {
     var start = 0;
     if (number[0] === '-') {
       start++;
-    }
-
-    if (base === 16) {
-      this._parseHex(number, start);
-    } else {
-      this._parseBase(number, base, start);
-    }
-
-    if (number[0] === '-') {
       this.negative = 1;
     }
 
-    this.strip();
-
-    if (endian !== 'le') return;
-
-    this._initArray(this.toArray(), base, endian);
+    if (start < number.length) {
+      if (base === 16) {
+        this._parseHex(number, start, endian);
+      } else {
+        this._parseBase(number, base, start);
+        if (endian === 'le') {
+          this._initArray(this.toArray(), base, endian);
+        }
+      }
+    }
   };
 
   BN.prototype._initNumber = function _initNumber (number, base, endian) {
@@ -500,31 +500,29 @@ var bn = createCommonjsModule(function (module) {
     return this.strip();
   };
 
-  function parseHex (str, start, end) {
-    var r = 0;
-    var len = Math.min(str.length, end);
-    for (var i = start; i < len; i++) {
-      var c = str.charCodeAt(i) - 48;
+  function parseHex4Bits (string, index) {
+    var c = string.charCodeAt(index);
+    // 'A' - 'F'
+    if (c >= 65 && c <= 70) {
+      return c - 55;
+    // 'a' - 'f'
+    } else if (c >= 97 && c <= 102) {
+      return c - 87;
+    // '0' - '9'
+    } else {
+      return (c - 48) & 0xf;
+    }
+  }
 
-      r <<= 4;
-
-      // 'a' - 'f'
-      if (c >= 49 && c <= 54) {
-        r |= c - 49 + 0xa;
-
-      // 'A' - 'F'
-      } else if (c >= 17 && c <= 22) {
-        r |= c - 17 + 0xa;
-
-      // '0' - '9'
-      } else {
-        r |= c & 0xf;
-      }
+  function parseHexByte (string, lowerBound, index) {
+    var r = parseHex4Bits(string, index);
+    if (index - 1 >= lowerBound) {
+      r |= parseHex4Bits(string, index - 1) << 4;
     }
     return r;
   }
 
-  BN.prototype._parseHex = function _parseHex (number, start) {
+  BN.prototype._parseHex = function _parseHex (number, start, endian) {
     // Create possibly bigger array to ensure that it fits the number
     this.length = Math.ceil((number.length - start) / 6);
     this.words = new Array(this.length);
@@ -532,25 +530,38 @@ var bn = createCommonjsModule(function (module) {
       this.words[i] = 0;
     }
 
-    var j, w;
-    // Scan 24-bit chunks and add them to the number
+    // 24-bits chunks
     var off = 0;
-    for (i = number.length - 6, j = 0; i >= start; i -= 6) {
-      w = parseHex(number, i, i + 6);
-      this.words[j] |= (w << off) & 0x3ffffff;
-      // NOTE: `0x3fffff` is intentional here, 26bits max shift + 24bit hex limb
-      this.words[j + 1] |= w >>> (26 - off) & 0x3fffff;
-      off += 24;
-      if (off >= 26) {
-        off -= 26;
-        j++;
+    var j = 0;
+
+    var w;
+    if (endian === 'be') {
+      for (i = number.length - 1; i >= start; i -= 2) {
+        w = parseHexByte(number, start, i) << off;
+        this.words[j] |= w & 0x3ffffff;
+        if (off >= 18) {
+          off -= 18;
+          j += 1;
+          this.words[j] |= w >>> 26;
+        } else {
+          off += 8;
+        }
+      }
+    } else {
+      var parseLength = number.length - start;
+      for (i = parseLength % 2 === 0 ? start + 1 : start; i < number.length; i += 2) {
+        w = parseHexByte(number, start, i) << off;
+        this.words[j] |= w & 0x3ffffff;
+        if (off >= 18) {
+          off -= 18;
+          j += 1;
+          this.words[j] |= w >>> 26;
+        } else {
+          off += 8;
+        }
       }
     }
-    if (i + 6 !== start) {
-      w = parseHex(number, start, i + 6);
-      this.words[j] |= (w << off) & 0x3ffffff;
-      this.words[j + 1] |= w >>> (26 - off) & 0x3fffff;
-    }
+
     this.strip();
   };
 
@@ -621,6 +632,8 @@ var bn = createCommonjsModule(function (module) {
         this._iaddn(word);
       }
     }
+
+    this.strip();
   };
 
   BN.prototype.copy = function copy (dest) {
@@ -3748,7 +3761,7 @@ var bn = createCommonjsModule(function (module) {
 })(module, commonjsGlobal);
 });
 
-const version = "logger/5.0.9";
+const version$c = "logger/5.1.0";
 
 let _permanentCensorErrors = false;
 let _censorErrors = false;
@@ -4005,7 +4018,7 @@ class Logger {
     }
     static globalLogger() {
         if (!_globalLogger) {
-            _globalLogger = new Logger(version);
+            _globalLogger = new Logger(version$c);
         }
         return _globalLogger;
     }
@@ -4041,9 +4054,9 @@ class Logger {
 Logger.errors = ErrorCode;
 Logger.levels = LogLevel;
 
-const version$1 = "bytes/5.0.10";
+const version$b = "bytes/5.1.0";
 
-const logger = new Logger(version$1);
+const logger$e = new Logger(version$b);
 ///////////////////////////////
 function isHexable(value) {
     return !!(value.toHexString);
@@ -4087,7 +4100,7 @@ function arrayify(value, options) {
         options = {};
     }
     if (typeof (value) === "number") {
-        logger.checkSafeUint53(value, "invalid arrayify value");
+        logger$e.checkSafeUint53(value, "invalid arrayify value");
         const result = [];
         while (value) {
             result.unshift(value & 0xff);
@@ -4114,7 +4127,7 @@ function arrayify(value, options) {
                 hex += "0";
             }
             else {
-                logger.throwArgumentError("hex data is odd-length", "value", value);
+                logger$e.throwArgumentError("hex data is odd-length", "value", value);
             }
         }
         const result = [];
@@ -4126,7 +4139,7 @@ function arrayify(value, options) {
     if (isBytes(value)) {
         return addSlice(new Uint8Array(value));
     }
-    return logger.throwArgumentError("invalid arrayify value", "value", value);
+    return logger$e.throwArgumentError("invalid arrayify value", "value", value);
 }
 function concat(items) {
     const objects = items.map(item => arrayify(item));
@@ -4169,7 +4182,7 @@ function hexlify(value, options) {
         options = {};
     }
     if (typeof (value) === "number") {
-        logger.checkSafeUint53(value, "invalid hexlify value");
+        logger$e.checkSafeUint53(value, "invalid hexlify value");
         let hex = "";
         while (value) {
             hex = HexCharacters[value & 0x0f] + hex;
@@ -4198,7 +4211,7 @@ function hexlify(value, options) {
                 value += "0";
             }
             else {
-                logger.throwArgumentError("hex data is odd-length", "value", value);
+                logger$e.throwArgumentError("hex data is odd-length", "value", value);
             }
         }
         return value.toLowerCase();
@@ -4211,14 +4224,31 @@ function hexlify(value, options) {
         }
         return result;
     }
-    return logger.throwArgumentError("invalid hexlify value", "value", value);
+    return logger$e.throwArgumentError("invalid hexlify value", "value", value);
+}
+/*
+function unoddify(value: BytesLike | Hexable | number): BytesLike | Hexable | number {
+    if (typeof(value) === "string" && value.length % 2 && value.substring(0, 2) === "0x") {
+        return "0x0" + value.substring(2);
+    }
+    return value;
+}
+*/
+function hexDataLength(data) {
+    if (typeof (data) !== "string") {
+        data = hexlify(data);
+    }
+    else if (!isHexString(data) || (data.length % 2)) {
+        return null;
+    }
+    return (data.length - 2) / 2;
 }
 function hexDataSlice(data, offset, endOffset) {
     if (typeof (data) !== "string") {
         data = hexlify(data);
     }
     else if (!isHexString(data) || (data.length % 2)) {
-        logger.throwArgumentError("invalid hexData", "value", data);
+        logger$e.throwArgumentError("invalid hexData", "value", data);
     }
     offset = 2 + 2 * offset;
     if (endOffset != null) {
@@ -4238,10 +4268,10 @@ function hexZeroPad(value, length) {
         value = hexlify(value);
     }
     else if (!isHexString(value)) {
-        logger.throwArgumentError("invalid hex string", "value", value);
+        logger$e.throwArgumentError("invalid hex string", "value", value);
     }
     if (value.length > 2 * length + 2) {
-        logger.throwArgumentError("value out of range", "value", arguments[1]);
+        logger$e.throwArgumentError("value out of range", "value", arguments[1]);
     }
     while (value.length < 2 * length + 2) {
         value = "0x0" + value.substring(2);
@@ -4249,19 +4279,19 @@ function hexZeroPad(value, length) {
     return value;
 }
 
-const version$2 = "bignumber/5.0.14";
+const version$a = "bignumber/5.1.0";
 
 var BN = bn.BN;
-const logger$1 = new Logger(version$2);
-const _constructorGuard = {};
+const logger$d = new Logger(version$a);
+const _constructorGuard$1 = {};
 const MAX_SAFE = 0x1fffffffffffff;
 // Only warn about passing 10 into radix once
 let _warnedToStringRadix = false;
 class BigNumber {
     constructor(constructorGuard, hex) {
-        logger$1.checkNew(new.target, BigNumber);
-        if (constructorGuard !== _constructorGuard) {
-            logger$1.throwError("cannot call constructor directly; use BigNumber.from", Logger.errors.UNSUPPORTED_OPERATION, {
+        logger$d.checkNew(new.target, BigNumber);
+        if (constructorGuard !== _constructorGuard$1) {
+            logger$d.throwError("cannot call constructor directly; use BigNumber.from", Logger.errors.UNSUPPORTED_OPERATION, {
                 operation: "new (BigNumber)"
             });
         }
@@ -4380,20 +4410,29 @@ class BigNumber {
         }
         return null;
     }
+    toBigInt() {
+        try {
+            return BigInt(this.toString());
+        }
+        catch (e) { }
+        return logger$d.throwError("this platform does not support BigInt", Logger.errors.UNSUPPORTED_OPERATION, {
+            value: this.toString()
+        });
+    }
     toString() {
         // Lots of people expect this, which we do not support, so check (See: #889)
         if (arguments.length > 0) {
             if (arguments[0] === 10) {
                 if (!_warnedToStringRadix) {
                     _warnedToStringRadix = true;
-                    logger$1.warn("BigNumber.toString does not accept any parameters; base-10 is assumed");
+                    logger$d.warn("BigNumber.toString does not accept any parameters; base-10 is assumed");
                 }
             }
             else if (arguments[0] === 16) {
-                logger$1.throwError("BigNumber.toString does not accept any parameters; use bigNumber.toHexString()", Logger.errors.UNEXPECTED_ARGUMENT, {});
+                logger$d.throwError("BigNumber.toString does not accept any parameters; use bigNumber.toHexString()", Logger.errors.UNEXPECTED_ARGUMENT, {});
             }
             else {
-                logger$1.throwError("BigNumber.toString does not accept parameters", Logger.errors.UNEXPECTED_ARGUMENT, {});
+                logger$d.throwError("BigNumber.toString does not accept parameters", Logger.errors.UNEXPECTED_ARGUMENT, {});
             }
         }
         return toBN(this).toString(10);
@@ -4410,12 +4449,12 @@ class BigNumber {
         }
         if (typeof (value) === "string") {
             if (value.match(/^-?0x[0-9a-f]+$/i)) {
-                return new BigNumber(_constructorGuard, toHex(value));
+                return new BigNumber(_constructorGuard$1, toHex(value));
             }
             if (value.match(/^-?[0-9]+$/)) {
-                return new BigNumber(_constructorGuard, toHex(new BN(value)));
+                return new BigNumber(_constructorGuard$1, toHex(new BN(value)));
             }
-            return logger$1.throwArgumentError("invalid BigNumber string", "value", value);
+            return logger$d.throwArgumentError("invalid BigNumber string", "value", value);
         }
         if (typeof (value) === "number") {
             if (value % 1) {
@@ -4455,7 +4494,7 @@ class BigNumber {
                 }
             }
         }
-        return logger$1.throwArgumentError("invalid BigNumber value", "value", value);
+        return logger$d.throwArgumentError("invalid BigNumber value", "value", value);
     }
     static isBigNumber(value) {
         return !!(value && value._isBigNumber);
@@ -4473,7 +4512,7 @@ function toHex(value) {
         value = value.substring(1);
         // Cannot have mulitple negative signs (e.g. "--0x04")
         if (value[0] === "-") {
-            logger$1.throwArgumentError("invalid hex", "value", value);
+            logger$d.throwArgumentError("invalid hex", "value", value);
         }
         // Call toHex on the positive component
         value = toHex(value);
@@ -4517,16 +4556,16 @@ function throwFault(fault, operation, value) {
     if (value != null) {
         params.value = value;
     }
-    return logger$1.throwError(fault, Logger.errors.NUMERIC_FAULT, params);
+    return logger$d.throwError(fault, Logger.errors.NUMERIC_FAULT, params);
 }
 // value should have no prefix
 function _base36To16(value) {
     return (new BN(value, 36)).toString(16);
 }
 
-const version$3 = "properties/5.0.8";
+const version$9 = "properties/5.1.0";
 
-var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+var __awaiter$2 = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
@@ -4535,7 +4574,7 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-const logger$2 = new Logger(version$3);
+const logger$c = new Logger(version$9);
 function defineReadOnly(object, name, value) {
     Object.defineProperty(object, name, {
         enumerable: true,
@@ -4557,7 +4596,7 @@ function getStatic(ctor, key) {
     return null;
 }
 function resolveProperties(object) {
-    return __awaiter(this, void 0, void 0, function* () {
+    return __awaiter$2(this, void 0, void 0, function* () {
         const promises = Object.keys(object).map((key) => {
             const value = object[key];
             return Promise.resolve(value).then((v) => ({ key: key, value: v }));
@@ -4594,7 +4633,7 @@ function _isFrozen(object) {
         }
         return true;
     }
-    return logger$2.throwArgumentError(`Cannot deepCopy ${typeof (object)}`, "object", object);
+    return logger$c.throwArgumentError(`Cannot deepCopy ${typeof (object)}`, "object", object);
 }
 // Returns a new copy of object, such that no properties may be replaced.
 // New properties may be added only to objects.
@@ -4617,7 +4656,7 @@ function _deepCopy(object) {
         }
         return result;
     }
-    return logger$2.throwArgumentError(`Cannot deepCopy ${typeof (object)}`, "object", object);
+    return logger$c.throwArgumentError(`Cannot deepCopy ${typeof (object)}`, "object", object);
 }
 function deepCopy(object) {
     return _deepCopy(object);
@@ -4630,10 +4669,10 @@ class Description {
     }
 }
 
-const version$4 = "abi/5.0.12";
+const version$8 = "abi/5.1.0";
 
-const logger$3 = new Logger(version$4);
-const _constructorGuard$1 = {};
+const logger$b = new Logger(version$8);
+const _constructorGuard = {};
 let ModifiersBytes = { calldata: true, memory: true, storage: true };
 let ModifiersNest = { calldata: true, memory: true };
 function checkModifier(type, name) {
@@ -4653,7 +4692,7 @@ function checkModifier(type, name) {
         }
     }
     if (ModifiersBytes[name] || name === "payable") {
-        logger$3.throwArgumentError("invalid modifier", "name", name);
+        logger$b.throwArgumentError("invalid modifier", "name", name);
     }
     return false;
 }
@@ -4661,7 +4700,7 @@ function checkModifier(type, name) {
 function parseParamType(param, allowIndexed) {
     let originalParam = param;
     function throwError(i) {
-        logger$3.throwArgumentError(`unexpected character at position ${i}`, "param", param);
+        logger$b.throwArgumentError(`unexpected character at position ${i}`, "param", param);
     }
     param = param.replace(/\s/g, " ");
     function newNode(parent) {
@@ -4800,7 +4839,7 @@ function parseParamType(param, allowIndexed) {
         }
     }
     if (node.parent) {
-        logger$3.throwArgumentError("unexpected eof", "param", param);
+        logger$b.throwArgumentError("unexpected eof", "param", param);
     }
     delete parent.state;
     if (node.name === "indexed") {
@@ -4837,8 +4876,8 @@ const FormatTypes = Object.freeze({
 const paramTypeArray = new RegExp(/^(.*)\[([0-9]*)\]$/);
 class ParamType {
     constructor(constructorGuard, params) {
-        if (constructorGuard !== _constructorGuard$1) {
-            logger$3.throwError("use fromString", Logger.errors.UNSUPPORTED_OPERATION, {
+        if (constructorGuard !== _constructorGuard) {
+            logger$b.throwError("use fromString", Logger.errors.UNSUPPORTED_OPERATION, {
                 operation: "new ParamType()"
             });
         }
@@ -4873,7 +4912,7 @@ class ParamType {
             format = FormatTypes.sighash;
         }
         if (!FormatTypes[format]) {
-            logger$3.throwArgumentError("invalid format type", "format", format);
+            logger$b.throwArgumentError("invalid format type", "format", format);
         }
         if (format === FormatTypes.json) {
             let result = {
@@ -4925,7 +4964,7 @@ class ParamType {
         if (ParamType.isParamType(value)) {
             return value;
         }
-        return new ParamType(_constructorGuard$1, {
+        return new ParamType(_constructorGuard, {
             name: (value.name || null),
             type: verifyType(value.type),
             indexed: ((value.indexed == null) ? null : !!value.indexed),
@@ -4952,8 +4991,8 @@ function parseParams(value, allowIndex) {
 }
 class Fragment {
     constructor(constructorGuard, params) {
-        if (constructorGuard !== _constructorGuard$1) {
-            logger$3.throwError("use a static from method", Logger.errors.UNSUPPORTED_OPERATION, {
+        if (constructorGuard !== _constructorGuard) {
+            logger$b.throwError("use a static from method", Logger.errors.UNSUPPORTED_OPERATION, {
                 operation: "new Fragment()"
             });
         }
@@ -4986,7 +5025,7 @@ class Fragment {
                 // @TODO: Something? Maybe return a FunctionFragment? A custom DefaultFunctionFragment?
                 return null;
         }
-        return logger$3.throwArgumentError("invalid fragment object", "value", value);
+        return logger$b.throwArgumentError("invalid fragment object", "value", value);
     }
     static fromString(value) {
         // Make sure the "returns" is surrounded by a space and all whitespace is exactly one space
@@ -5002,7 +5041,7 @@ class Fragment {
         else if (value.split("(")[0].trim() === "constructor") {
             return ConstructorFragment.fromString(value.trim());
         }
-        return logger$3.throwArgumentError("unsupported fragment", "value", value);
+        return logger$b.throwArgumentError("unsupported fragment", "value", value);
     }
     static isFragment(value) {
         return !!(value && value._isFragment);
@@ -5014,7 +5053,7 @@ class EventFragment extends Fragment {
             format = FormatTypes.sighash;
         }
         if (!FormatTypes[format]) {
-            logger$3.throwArgumentError("invalid format type", "format", format);
+            logger$b.throwArgumentError("invalid format type", "format", format);
         }
         if (format === FormatTypes.json) {
             return JSON.stringify({
@@ -5047,7 +5086,7 @@ class EventFragment extends Fragment {
             return value;
         }
         if (value.type !== "event") {
-            logger$3.throwArgumentError("invalid event object", "value", value);
+            logger$b.throwArgumentError("invalid event object", "value", value);
         }
         const params = {
             name: verifyIdentifier(value.name),
@@ -5055,12 +5094,12 @@ class EventFragment extends Fragment {
             inputs: (value.inputs ? value.inputs.map(ParamType.fromObject) : []),
             type: "event"
         };
-        return new EventFragment(_constructorGuard$1, params);
+        return new EventFragment(_constructorGuard, params);
     }
     static fromString(value) {
         let match = value.match(regexParen);
         if (!match) {
-            logger$3.throwArgumentError("invalid event string", "value", value);
+            logger$b.throwArgumentError("invalid event string", "value", value);
         }
         let anonymous = false;
         match[3].split(" ").forEach((modifier) => {
@@ -5071,7 +5110,7 @@ class EventFragment extends Fragment {
                 case "":
                     break;
                 default:
-                    logger$3.warn("unknown modifier: " + modifier);
+                    logger$b.warn("unknown modifier: " + modifier);
             }
         });
         return EventFragment.fromObject({
@@ -5090,10 +5129,10 @@ function parseGas(value, params) {
     let comps = value.split("@");
     if (comps.length !== 1) {
         if (comps.length > 2) {
-            logger$3.throwArgumentError("invalid human-readable ABI signature", "value", value);
+            logger$b.throwArgumentError("invalid human-readable ABI signature", "value", value);
         }
         if (!comps[1].match(/^[0-9]+$/)) {
-            logger$3.throwArgumentError("invalid human-readable ABI signature gas", "value", value);
+            logger$b.throwArgumentError("invalid human-readable ABI signature gas", "value", value);
         }
         params.gas = BigNumber.from(comps[1]);
         return comps[0];
@@ -5146,14 +5185,14 @@ function verifyState(value) {
         result.constant = (result.stateMutability === "view" || result.stateMutability === "pure");
         if (value.constant != null) {
             if ((!!value.constant) !== result.constant) {
-                logger$3.throwArgumentError("cannot have constant function with mutability " + result.stateMutability, "value", value);
+                logger$b.throwArgumentError("cannot have constant function with mutability " + result.stateMutability, "value", value);
             }
         }
         // Set (and check things are consistent) the payable property
         result.payable = (result.stateMutability === "payable");
         if (value.payable != null) {
             if ((!!value.payable) !== result.payable) {
-                logger$3.throwArgumentError("cannot have payable function with mutability " + result.stateMutability, "value", value);
+                logger$b.throwArgumentError("cannot have payable function with mutability " + result.stateMutability, "value", value);
             }
         }
     }
@@ -5161,7 +5200,7 @@ function verifyState(value) {
         result.payable = !!value.payable;
         // If payable we can assume non-constant; otherwise we can't assume
         if (value.constant == null && !result.payable && value.type !== "constructor") {
-            logger$3.throwArgumentError("unable to determine stateMutability", "value", value);
+            logger$b.throwArgumentError("unable to determine stateMutability", "value", value);
         }
         result.constant = !!value.constant;
         if (result.constant) {
@@ -5171,7 +5210,7 @@ function verifyState(value) {
             result.stateMutability = (result.payable ? "payable" : "nonpayable");
         }
         if (result.payable && result.constant) {
-            logger$3.throwArgumentError("cannot have constant payable function", "value", value);
+            logger$b.throwArgumentError("cannot have constant payable function", "value", value);
         }
     }
     else if (value.constant != null) {
@@ -5180,7 +5219,7 @@ function verifyState(value) {
         result.stateMutability = (result.constant ? "view" : "payable");
     }
     else if (value.type !== "constructor") {
-        logger$3.throwArgumentError("unable to determine stateMutability", "value", value);
+        logger$b.throwArgumentError("unable to determine stateMutability", "value", value);
     }
     return result;
 }
@@ -5190,7 +5229,7 @@ class ConstructorFragment extends Fragment {
             format = FormatTypes.sighash;
         }
         if (!FormatTypes[format]) {
-            logger$3.throwArgumentError("invalid format type", "format", format);
+            logger$b.throwArgumentError("invalid format type", "format", format);
         }
         if (format === FormatTypes.json) {
             return JSON.stringify({
@@ -5202,7 +5241,7 @@ class ConstructorFragment extends Fragment {
             });
         }
         if (format === FormatTypes.sighash) {
-            logger$3.throwError("cannot format a constructor for sighash", Logger.errors.UNSUPPORTED_OPERATION, {
+            logger$b.throwError("cannot format a constructor for sighash", Logger.errors.UNSUPPORTED_OPERATION, {
                 operation: "format(sighash)"
             });
         }
@@ -5223,11 +5262,11 @@ class ConstructorFragment extends Fragment {
             return value;
         }
         if (value.type !== "constructor") {
-            logger$3.throwArgumentError("invalid constructor object", "value", value);
+            logger$b.throwArgumentError("invalid constructor object", "value", value);
         }
         let state = verifyState(value);
         if (state.constant) {
-            logger$3.throwArgumentError("constructor cannot be constant", "value", value);
+            logger$b.throwArgumentError("constructor cannot be constant", "value", value);
         }
         const params = {
             name: null,
@@ -5237,14 +5276,14 @@ class ConstructorFragment extends Fragment {
             stateMutability: state.stateMutability,
             gas: (value.gas ? BigNumber.from(value.gas) : null)
         };
-        return new ConstructorFragment(_constructorGuard$1, params);
+        return new ConstructorFragment(_constructorGuard, params);
     }
     static fromString(value) {
         let params = { type: "constructor" };
         value = parseGas(value, params);
         let parens = value.match(regexParen);
         if (!parens || parens[1].trim() !== "constructor") {
-            logger$3.throwArgumentError("invalid constructor string", "value", value);
+            logger$b.throwArgumentError("invalid constructor string", "value", value);
         }
         params.inputs = parseParams(parens[2].trim(), false);
         parseModifiers(parens[3].trim(), params);
@@ -5260,7 +5299,7 @@ class FunctionFragment extends ConstructorFragment {
             format = FormatTypes.sighash;
         }
         if (!FormatTypes[format]) {
-            logger$3.throwArgumentError("invalid format type", "format", format);
+            logger$b.throwArgumentError("invalid format type", "format", format);
         }
         if (format === FormatTypes.json) {
             return JSON.stringify({
@@ -5308,7 +5347,7 @@ class FunctionFragment extends ConstructorFragment {
             return value;
         }
         if (value.type !== "function") {
-            logger$3.throwArgumentError("invalid function object", "value", value);
+            logger$b.throwArgumentError("invalid function object", "value", value);
         }
         let state = verifyState(value);
         const params = {
@@ -5321,18 +5360,18 @@ class FunctionFragment extends ConstructorFragment {
             stateMutability: state.stateMutability,
             gas: (value.gas ? BigNumber.from(value.gas) : null)
         };
-        return new FunctionFragment(_constructorGuard$1, params);
+        return new FunctionFragment(_constructorGuard, params);
     }
     static fromString(value) {
         let params = { type: "function" };
         value = parseGas(value, params);
         let comps = value.split(" returns ");
         if (comps.length > 2) {
-            logger$3.throwArgumentError("invalid function string", "value", value);
+            logger$b.throwArgumentError("invalid function string", "value", value);
         }
         let parens = comps[0].match(regexParen);
         if (!parens) {
-            logger$3.throwArgumentError("invalid function signature", "value", value);
+            logger$b.throwArgumentError("invalid function signature", "value", value);
         }
         params.name = parens[1].trim();
         if (params.name) {
@@ -5344,7 +5383,7 @@ class FunctionFragment extends ConstructorFragment {
         if (comps.length > 1) {
             let returns = comps[1].match(regexParen);
             if (returns[1].trim() != "" || returns[3].trim() != "") {
-                logger$3.throwArgumentError("unexpected tokens", "value", value);
+                logger$b.throwArgumentError("unexpected tokens", "value", value);
             }
             params.outputs = parseParams(returns[2], false);
         }
@@ -5375,7 +5414,7 @@ function verifyType(type) {
 const regexIdentifier = new RegExp("^[A-Za-z_][A-Za-z0-9_]*$");
 function verifyIdentifier(value) {
     if (!value || !value.match(regexIdentifier)) {
-        logger$3.throwArgumentError(`invalid identifier "${value}"`, "value", value);
+        logger$b.throwArgumentError(`invalid identifier "${value}"`, "value", value);
     }
     return value;
 }
@@ -5399,7 +5438,7 @@ function splitNesting(value) {
             else if (c === ")") {
                 depth--;
                 if (depth === -1) {
-                    logger$3.throwArgumentError("unbalanced parenthesis", "value", value);
+                    logger$b.throwArgumentError("unbalanced parenthesis", "value", value);
                 }
             }
         }
@@ -5410,7 +5449,7 @@ function splitNesting(value) {
     return result;
 }
 
-const logger$4 = new Logger(version$4);
+const logger$a = new Logger(version$8);
 function checkResultErrors(result) {
     // Find the first error (if any)
     const errors = [];
@@ -5441,7 +5480,7 @@ class Coder {
         this.dynamic = dynamic;
     }
     _throwError(message, value) {
-        logger$4.throwArgumentError(message, this.localName, value);
+        logger$a.throwArgumentError(message, this.localName, value);
     }
 }
 class Writer {
@@ -5475,7 +5514,7 @@ class Writer {
     _getValue(value) {
         let bytes = arrayify(BigNumber.from(value));
         if (bytes.length > this.wordSize) {
-            logger$4.throwError("value out-of-bounds", Logger.errors.BUFFER_OVERRUN, {
+            logger$a.throwError("value out-of-bounds", Logger.errors.BUFFER_OVERRUN, {
                 length: this.wordSize,
                 offset: bytes.length
             });
@@ -5529,7 +5568,7 @@ class Reader {
                 alignedLength = length;
             }
             else {
-                logger$4.throwError("data out-of-bounds", Logger.errors.BUFFER_OVERRUN, {
+                logger$a.throwError("data out-of-bounds", Logger.errors.BUFFER_OVERRUN, {
                     length: this._data.length,
                     offset: this._offset + alignedLength
                 });
@@ -6033,9 +6072,9 @@ function keccak256(data) {
     return '0x' + sha3.keccak_256(arrayify(data));
 }
 
-const version$5 = "rlp/5.0.8";
+const version$7 = "rlp/5.1.0";
 
-const logger$5 = new Logger(version$5);
+const logger$9 = new Logger(version$7);
 function arrayifyInteger(value) {
     const result = [];
     while (value) {
@@ -6059,7 +6098,7 @@ function _encode(object) {
         return length.concat(payload);
     }
     if (!isBytesLike(object)) {
-        logger$5.throwArgumentError("RLP object must be BytesLike", "object", object);
+        logger$9.throwArgumentError("RLP object must be BytesLike", "object", object);
     }
     const data = Array.prototype.slice.call(arrayify(object));
     if (data.length === 1 && data[0] <= 0x7f) {
@@ -6077,12 +6116,12 @@ function encode(object) {
     return hexlify(_encode(object));
 }
 
-const version$6 = "address/5.0.10";
+const version$6 = "address/5.1.0";
 
-const logger$6 = new Logger(version$6);
+const logger$8 = new Logger(version$6);
 function getChecksumAddress(address) {
     if (!isHexString(address, 20)) {
-        logger$6.throwArgumentError("invalid address", "address", address);
+        logger$8.throwArgumentError("invalid address", "address", address);
     }
     address = address.toLowerCase();
     const chars = address.substring(2).split("");
@@ -6138,7 +6177,7 @@ function ibanChecksum(address) {
 function getAddress(address) {
     let result = null;
     if (typeof (address) !== "string") {
-        logger$6.throwArgumentError("invalid address", "address", address);
+        logger$8.throwArgumentError("invalid address", "address", address);
     }
     if (address.match(/^(0x)?[0-9a-fA-F]{40}$/)) {
         // Missing the 0x prefix
@@ -6148,14 +6187,14 @@ function getAddress(address) {
         result = getChecksumAddress(address);
         // It is a checksummed address with a bad checksum
         if (address.match(/([A-F].*[a-f])|([a-f].*[A-F])/) && result !== address) {
-            logger$6.throwArgumentError("bad address checksum", "address", address);
+            logger$8.throwArgumentError("bad address checksum", "address", address);
         }
         // Maybe ICAP? (we only support direct mode)
     }
     else if (address.match(/^XE[0-9]{2}[0-9A-Za-z]{30,31}$/)) {
         // It is an ICAP address with a bad checksum
         if (address.substring(2, 4) !== ibanChecksum(address)) {
-            logger$6.throwArgumentError("bad icap checksum", "address", address);
+            logger$8.throwArgumentError("bad icap checksum", "address", address);
         }
         result = _base36To16(address.substring(4));
         while (result.length < 40) {
@@ -6164,7 +6203,7 @@ function getAddress(address) {
         result = getChecksumAddress("0x" + result);
     }
     else {
-        logger$6.throwArgumentError("invalid address", "address", address);
+        logger$8.throwArgumentError("invalid address", "address", address);
     }
     return result;
 }
@@ -6175,7 +6214,7 @@ function getContractAddress(transaction) {
         from = getAddress(transaction.from);
     }
     catch (error) {
-        logger$6.throwArgumentError("missing from address", "transaction", transaction);
+        logger$8.throwArgumentError("missing from address", "transaction", transaction);
     }
     const nonce = stripZeros(arrayify(BigNumber.from(transaction.nonce).toHexString()));
     return getAddress(hexDataSlice(keccak256(encode([from, nonce])), 12));
@@ -6219,7 +6258,7 @@ class AnonymousCoder extends Coder {
     }
 }
 
-const logger$7 = new Logger(version$4);
+const logger$7 = new Logger(version$8);
 function pack(writer, coders, values) {
     let arrayValues = null;
     if (Array.isArray(values)) {
@@ -6535,9 +6574,9 @@ class NumberCoder extends Coder {
     }
 }
 
-const version$7 = "strings/5.0.9";
+const version$5 = "strings/5.1.0";
 
-const logger$8 = new Logger(version$7);
+const logger$6 = new Logger(version$5);
 ///////////////////////////////
 var UnicodeNormalizationForm;
 (function (UnicodeNormalizationForm) {
@@ -6575,7 +6614,7 @@ var Utf8ErrorReason;
     Utf8ErrorReason["OVERLONG"] = "overlong representation";
 })(Utf8ErrorReason || (Utf8ErrorReason = {}));
 function errorFunc(reason, offset, bytes, output, badCodepoint) {
-    return logger$8.throwArgumentError(`invalid codepoint at offset ${offset}; ${reason}`, "bytes", bytes);
+    return logger$6.throwArgumentError(`invalid codepoint at offset ${offset}; ${reason}`, "bytes", bytes);
 }
 function ignoreFunc(reason, offset, bytes, output, badCodepoint) {
     // If there is an invalid prefix (including stray continuation), skip any additional continuation bytes
@@ -6701,7 +6740,7 @@ function getUtf8CodePoints(bytes, onError) {
 // http://stackoverflow.com/questions/18729405/how-to-convert-utf8-string-to-byte-array
 function toUtf8Bytes(str, form = UnicodeNormalizationForm.current) {
     if (form != UnicodeNormalizationForm.current) {
-        logger$8.checkNormalize();
+        logger$6.checkNormalize();
         str = str.normalize(form);
     }
     let result = [];
@@ -6817,12 +6856,12 @@ class TupleCoder extends Coder {
     }
 }
 
-const logger$9 = new Logger(version$4);
+const logger$5 = new Logger(version$8);
 const paramTypeBytes = new RegExp(/^bytes([0-9]*)$/);
 const paramTypeNumber = new RegExp(/^(u?int)([0-9]*)$/);
 class AbiCoder {
     constructor(coerceFunc) {
-        logger$9.checkNew(new.target, AbiCoder);
+        logger$5.checkNew(new.target, AbiCoder);
         defineReadOnly(this, "coerceFunc", coerceFunc || null);
     }
     _getCoder(param) {
@@ -6849,7 +6888,7 @@ class AbiCoder {
         if (match) {
             let size = parseInt(match[2] || "256");
             if (size === 0 || size > 256 || (size % 8) !== 0) {
-                logger$9.throwArgumentError("invalid " + match[1] + " bit length", "param", param);
+                logger$5.throwArgumentError("invalid " + match[1] + " bit length", "param", param);
             }
             return new NumberCoder(size / 8, (match[1] === "int"), param.name);
         }
@@ -6858,11 +6897,11 @@ class AbiCoder {
         if (match) {
             let size = parseInt(match[1]);
             if (size === 0 || size > 32) {
-                logger$9.throwArgumentError("invalid bytes length", "param", param);
+                logger$5.throwArgumentError("invalid bytes length", "param", param);
             }
             return new FixedBytesCoder(size, param.name);
         }
-        return logger$9.throwArgumentError("invalid type", "type", param.type);
+        return logger$5.throwArgumentError("invalid type", "type", param.type);
     }
     _getWordSize() { return 32; }
     _getReader(data, allowLoose) {
@@ -6878,7 +6917,7 @@ class AbiCoder {
     }
     encode(types, values) {
         if (types.length !== values.length) {
-            logger$9.throwError("types/values length mismatch", Logger.errors.INVALID_ARGUMENT, {
+            logger$5.throwError("types/values length mismatch", Logger.errors.INVALID_ARGUMENT, {
                 count: { types: types.length, values: values.length },
                 value: { types: types, values: values }
             });
@@ -6901,7 +6940,7 @@ function id(text) {
     return keccak256(toUtf8Bytes(text));
 }
 
-const logger$a = new Logger(version$4);
+const logger$4 = new Logger(version$8);
 class LogDescription extends Description {
 }
 class TransactionDescription extends Description {
@@ -6931,7 +6970,7 @@ function checkNames(fragment: Fragment, type: "input" | "output", params: Array<
 */
 class Interface {
     constructor(fragments) {
-        logger$a.checkNew(new.target, Interface);
+        logger$4.checkNew(new.target, Interface);
         let abi = [];
         if (typeof (fragments) === "string") {
             abi = JSON.parse(fragments);
@@ -6953,7 +6992,7 @@ class Interface {
             switch (fragment.type) {
                 case "constructor":
                     if (this.deploy) {
-                        logger$a.warn("duplicate definition - constructor");
+                        logger$4.warn("duplicate definition - constructor");
                         return;
                     }
                     //checkNames(fragment, "input", fragment.inputs);
@@ -6973,7 +7012,7 @@ class Interface {
             }
             let signature = fragment.format();
             if (bucket[signature]) {
-                logger$a.warn("duplicate definition - " + signature);
+                logger$4.warn("duplicate definition - " + signature);
                 return;
             }
             bucket[signature] = fragment;
@@ -6992,7 +7031,7 @@ class Interface {
             format = FormatTypes.full;
         }
         if (format === FormatTypes.sighash) {
-            logger$a.throwArgumentError("interface does not support formatting sighash", "format", format);
+            logger$4.throwArgumentError("interface does not support formatting sighash", "format", format);
         }
         const abi = this.fragments.map((fragment) => fragment.format(format));
         // We need to re-bundle the JSON fragments a bit
@@ -7022,24 +7061,24 @@ class Interface {
                     return this.functions[name];
                 }
             }
-            logger$a.throwArgumentError("no matching function", "sighash", nameOrSignatureOrSighash);
+            logger$4.throwArgumentError("no matching function", "sighash", nameOrSignatureOrSighash);
         }
         // It is a bare name, look up the function (will return null if ambiguous)
         if (nameOrSignatureOrSighash.indexOf("(") === -1) {
             const name = nameOrSignatureOrSighash.trim();
             const matching = Object.keys(this.functions).filter((f) => (f.split("(" /* fix:) */)[0] === name));
             if (matching.length === 0) {
-                logger$a.throwArgumentError("no matching function", "name", name);
+                logger$4.throwArgumentError("no matching function", "name", name);
             }
             else if (matching.length > 1) {
-                logger$a.throwArgumentError("multiple matching functions", "name", name);
+                logger$4.throwArgumentError("multiple matching functions", "name", name);
             }
             return this.functions[matching[0]];
         }
         // Normlize the signature and lookup the function
         const result = this.functions[FunctionFragment.fromString(nameOrSignatureOrSighash).format()];
         if (!result) {
-            logger$a.throwArgumentError("no matching function", "signature", nameOrSignatureOrSighash);
+            logger$4.throwArgumentError("no matching function", "signature", nameOrSignatureOrSighash);
         }
         return result;
     }
@@ -7052,24 +7091,24 @@ class Interface {
                     return this.events[name];
                 }
             }
-            logger$a.throwArgumentError("no matching event", "topichash", topichash);
+            logger$4.throwArgumentError("no matching event", "topichash", topichash);
         }
         // It is a bare name, look up the function (will return null if ambiguous)
         if (nameOrSignatureOrTopic.indexOf("(") === -1) {
             const name = nameOrSignatureOrTopic.trim();
             const matching = Object.keys(this.events).filter((f) => (f.split("(" /* fix:) */)[0] === name));
             if (matching.length === 0) {
-                logger$a.throwArgumentError("no matching event", "name", name);
+                logger$4.throwArgumentError("no matching event", "name", name);
             }
             else if (matching.length > 1) {
-                logger$a.throwArgumentError("multiple matching events", "name", name);
+                logger$4.throwArgumentError("multiple matching events", "name", name);
             }
             return this.events[matching[0]];
         }
         // Normlize the signature and lookup the function
         const result = this.events[EventFragment.fromString(nameOrSignatureOrTopic).format()];
         if (!result) {
-            logger$a.throwArgumentError("no matching event", "signature", nameOrSignatureOrTopic);
+            logger$4.throwArgumentError("no matching event", "signature", nameOrSignatureOrTopic);
         }
         return result;
     }
@@ -7103,7 +7142,7 @@ class Interface {
         }
         const bytes = arrayify(data);
         if (hexlify(bytes.slice(0, 4)) !== this.getSighash(functionFragment)) {
-            logger$a.throwArgumentError(`data signature does not match function ${functionFragment.name}.`, "data", hexlify(bytes));
+            logger$4.throwArgumentError(`data signature does not match function ${functionFragment.name}.`, "data", hexlify(bytes));
         }
         return this._decodeParams(functionFragment.inputs, bytes.slice(4));
     }
@@ -7139,7 +7178,7 @@ class Interface {
                 }
                 break;
         }
-        return logger$a.throwError("call revert exception", Logger.errors.CALL_EXCEPTION, {
+        return logger$4.throwError("call revert exception", Logger.errors.CALL_EXCEPTION, {
             method: functionFragment.format(),
             errorSignature: errorSignature,
             errorArgs: [reason],
@@ -7159,7 +7198,7 @@ class Interface {
             eventFragment = this.getEvent(eventFragment);
         }
         if (values.length > eventFragment.inputs.length) {
-            logger$a.throwError("too many arguments for " + eventFragment.format(), Logger.errors.UNEXPECTED_ARGUMENT, {
+            logger$4.throwError("too many arguments for " + eventFragment.format(), Logger.errors.UNEXPECTED_ARGUMENT, {
                 argument: "values",
                 value: values
             });
@@ -7185,7 +7224,7 @@ class Interface {
             let param = eventFragment.inputs[index];
             if (!param.indexed) {
                 if (value != null) {
-                    logger$a.throwArgumentError("cannot filter non-indexed parameters; must be null", ("contract." + param.name), value);
+                    logger$4.throwArgumentError("cannot filter non-indexed parameters; must be null", ("contract." + param.name), value);
                 }
                 return;
             }
@@ -7193,7 +7232,7 @@ class Interface {
                 topics.push(null);
             }
             else if (param.baseType === "array" || param.baseType === "tuple") {
-                logger$a.throwArgumentError("filtering with tuples or arrays not supported", ("contract." + param.name), value);
+                logger$4.throwArgumentError("filtering with tuples or arrays not supported", ("contract." + param.name), value);
             }
             else if (Array.isArray(value)) {
                 topics.push(value.map((value) => encodeTopic(param, value)));
@@ -7219,7 +7258,7 @@ class Interface {
             topics.push(this.getEventTopic(eventFragment));
         }
         if (values.length !== eventFragment.inputs.length) {
-            logger$a.throwArgumentError("event arguments/values mismatch", "values", values);
+            logger$4.throwArgumentError("event arguments/values mismatch", "values", values);
         }
         eventFragment.inputs.forEach((param, index) => {
             const value = values[index];
@@ -7256,7 +7295,7 @@ class Interface {
         if (topics != null && !eventFragment.anonymous) {
             let topicHash = this.getEventTopic(eventFragment);
             if (!isHexString(topics[0], 32) || topics[0].toLowerCase() !== topicHash) {
-                logger$a.throwError("fragment/topic mismatch", Logger.errors.INVALID_ARGUMENT, { argument: "topics[0]", expected: topicHash, value: topics[0] });
+                logger$4.throwError("fragment/topic mismatch", Logger.errors.INVALID_ARGUMENT, { argument: "topics[0]", expected: topicHash, value: topics[0] });
             }
             topics = topics.slice(1);
         }
@@ -7383,14 +7422,14 @@ class Interface {
     }
 }
 
-const version$8 = "abstract-provider/5.0.9";
+const version$4 = "abstract-provider/5.1.0";
 
-const logger$b = new Logger(version$8);
+const logger$3 = new Logger(version$4);
 ///////////////////////////////
 // Exported Abstracts
 class Provider {
     constructor() {
-        logger$b.checkAbstract(new.target, Provider);
+        logger$3.checkAbstract(new.target, Provider);
         defineReadOnly(this, "_isProvider", true);
     }
     // Alias for "on"
@@ -7406,7 +7445,7 @@ class Provider {
     }
 }
 
-const version$9 = "abstract-signer/5.0.12";
+const version$3 = "abstract-signer/5.1.0";
 
 var __awaiter$1 = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -7417,9 +7456,9 @@ var __awaiter$1 = (undefined && undefined.__awaiter) || function (thisArg, _argu
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-const logger$c = new Logger(version$9);
+const logger$2 = new Logger(version$3);
 const allowedTransactionKeys = [
-    "chainId", "data", "from", "gasLimit", "gasPrice", "nonce", "to", "value"
+    "accessList", "chainId", "data", "from", "gasLimit", "gasPrice", "nonce", "to", "type", "value"
 ];
 const forwardErrors = [
     Logger.errors.INSUFFICIENT_FUNDS,
@@ -7430,7 +7469,7 @@ class Signer {
     ///////////////////
     // Sub-classes MUST call super
     constructor() {
-        logger$c.checkAbstract(new.target, Signer);
+        logger$2.checkAbstract(new.target, Signer);
         defineReadOnly(this, "_isSigner", true);
     }
     ///////////////////
@@ -7503,7 +7542,7 @@ class Signer {
     checkTransaction(transaction) {
         for (const key in transaction) {
             if (allowedTransactionKeys.indexOf(key) === -1) {
-                logger$c.throwArgumentError("invalid transaction key: " + key, "transaction", transaction);
+                logger$2.throwArgumentError("invalid transaction key: " + key, "transaction", transaction);
             }
         }
         const tx = shallowCopy(transaction);
@@ -7517,7 +7556,7 @@ class Signer {
                 this.getAddress()
             ]).then((result) => {
                 if (result[0].toLowerCase() !== result[1].toLowerCase()) {
-                    logger$c.throwArgumentError("from address mismatch", "transaction", transaction);
+                    logger$2.throwArgumentError("from address mismatch", "transaction", transaction);
                 }
                 return result[0];
             });
@@ -7532,7 +7571,16 @@ class Signer {
         return __awaiter$1(this, void 0, void 0, function* () {
             const tx = yield resolveProperties(this.checkTransaction(transaction));
             if (tx.to != null) {
-                tx.to = Promise.resolve(tx.to).then((to) => this.resolveName(to));
+                tx.to = Promise.resolve(tx.to).then((to) => __awaiter$1(this, void 0, void 0, function* () {
+                    if (to == null) {
+                        return null;
+                    }
+                    const address = yield this.resolveName(to);
+                    if (address == null) {
+                        logger$2.throwArgumentError("provided ENS name resolves to null", "tx.to", to);
+                    }
+                    return address;
+                }));
             }
             if (tx.gasPrice == null) {
                 tx.gasPrice = this.getGasPrice();
@@ -7545,7 +7593,7 @@ class Signer {
                     if (forwardErrors.indexOf(error.code) >= 0) {
                         throw error;
                     }
-                    return logger$c.throwError("cannot estimate gas; transaction may fail or may require manual gas limit", Logger.errors.UNPREDICTABLE_GAS_LIMIT, {
+                    return logger$2.throwError("cannot estimate gas; transaction may fail or may require manual gas limit", Logger.errors.UNPREDICTABLE_GAS_LIMIT, {
                         error: error,
                         tx: tx
                     });
@@ -7560,7 +7608,7 @@ class Signer {
                     this.getChainId()
                 ]).then((results) => {
                     if (results[1] !== 0 && results[0] !== results[1]) {
-                        logger$c.throwArgumentError("chainId address mismatch", "transaction", transaction);
+                        logger$2.throwArgumentError("chainId address mismatch", "transaction", transaction);
                     }
                     return results[0];
                 });
@@ -7572,7 +7620,7 @@ class Signer {
     // Sub-classes SHOULD leave these alone
     _checkProvider(operation) {
         if (!this.provider) {
-            logger$c.throwError("missing provider", Logger.errors.UNSUPPORTED_OPERATION, {
+            logger$2.throwError("missing provider", Logger.errors.UNSUPPORTED_OPERATION, {
                 operation: (operation || "_checkProvider")
             });
         }
@@ -7583,7 +7631,7 @@ class Signer {
 }
 class VoidSigner extends Signer {
     constructor(address, provider) {
-        logger$c.checkNew(new.target, VoidSigner);
+        logger$2.checkNew(new.target, VoidSigner);
         super();
         defineReadOnly(this, "address", address);
         defineReadOnly(this, "provider", provider || null);
@@ -7593,7 +7641,7 @@ class VoidSigner extends Signer {
     }
     _fail(message, operation) {
         return Promise.resolve().then(() => {
-            logger$c.throwError(message, Logger.errors.UNSUPPORTED_OPERATION, { operation: operation });
+            logger$2.throwError(message, Logger.errors.UNSUPPORTED_OPERATION, { operation: operation });
         });
     }
     signMessage(message) {
@@ -7610,9 +7658,46 @@ class VoidSigner extends Signer {
     }
 }
 
-const version$a = "contracts/5.0.10";
+const version$2 = "transactions/5.1.0";
 
-var __awaiter$2 = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+const logger$1 = new Logger(version$2);
+function accessSetify(addr, storageKeys) {
+    return {
+        address: getAddress(addr),
+        storageKeys: (storageKeys || []).map((storageKey, index) => {
+            if (hexDataLength(storageKey) !== 32) {
+                logger$1.throwArgumentError("invalid access list storageKey", `accessList[${addr}:${index}]`, storageKey);
+            }
+            return storageKey.toLowerCase();
+        })
+    };
+}
+function accessListify(value) {
+    if (Array.isArray(value)) {
+        return value.map((set, index) => {
+            if (Array.isArray(set)) {
+                if (set.length > 2) {
+                    logger$1.throwArgumentError("access list expected to be [ address, storageKeys[] ]", `value[${index}]`, set);
+                }
+                return accessSetify(set[0], set[1]);
+            }
+            return accessSetify(set.address, set.storageKeys);
+        });
+    }
+    const result = Object.keys(value).map((addr) => {
+        const storageKeys = value[addr].reduce((accum, storageKey) => {
+            accum[storageKey] = true;
+            return accum;
+        }, {});
+        return accessSetify(addr, Object.keys(storageKeys).sort());
+    });
+    result.sort((a, b) => (a.address.localeCompare(b.address)));
+    return result;
+}
+
+const version$1 = "contracts/5.1.0";
+
+var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
@@ -7621,9 +7706,9 @@ var __awaiter$2 = (undefined && undefined.__awaiter) || function (thisArg, _argu
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-const logger$d = new Logger(version$a);
+const logger = new Logger(version$1);
 function resolveName(resolver, nameOrPromise) {
-    return __awaiter$2(this, void 0, void 0, function* () {
+    return __awaiter(this, void 0, void 0, function* () {
         const name = yield nameOrPromise;
         // If it is already an address, just use it (after adding checksum)
         try {
@@ -7631,20 +7716,20 @@ function resolveName(resolver, nameOrPromise) {
         }
         catch (error) { }
         if (!resolver) {
-            logger$d.throwError("a provider or signer is needed to resolve ENS names", Logger.errors.UNSUPPORTED_OPERATION, {
+            logger.throwError("a provider or signer is needed to resolve ENS names", Logger.errors.UNSUPPORTED_OPERATION, {
                 operation: "resolveName"
             });
         }
         const address = yield resolver.resolveName(name);
         if (address == null) {
-            logger$d.throwArgumentError("resolver or addr is not configured for ENS name", "name", name);
+            logger.throwArgumentError("resolver or addr is not configured for ENS name", "name", name);
         }
         return address;
     });
 }
 // Recursively replaces ENS names with promises to resolve the name and resolves all properties
 function resolveAddresses(resolver, value, paramType) {
-    return __awaiter$2(this, void 0, void 0, function* () {
+    return __awaiter(this, void 0, void 0, function* () {
         if (Array.isArray(paramType)) {
             return yield Promise.all(paramType.map((paramType, index) => {
                 return resolveAddresses(resolver, ((Array.isArray(value)) ? value[index] : value[paramType.name]), paramType);
@@ -7666,14 +7751,14 @@ function resolveAddresses(resolver, value, paramType) {
     });
 }
 function populateTransaction(contract, fragment, args) {
-    return __awaiter$2(this, void 0, void 0, function* () {
+    return __awaiter(this, void 0, void 0, function* () {
         // If an extra argument is given, it is overrides
         let overrides = {};
         if (args.length === fragment.inputs.length + 1 && typeof (args[args.length - 1]) === "object") {
             overrides = shallowCopy(args.pop());
         }
         // Make sure the parameter count matches
-        logger$d.checkArgumentCount(args.length, fragment.inputs.length, "passed to contract");
+        logger.checkArgumentCount(args.length, fragment.inputs.length, "passed to contract");
         // Populate "from" override (allow promises)
         if (contract.signer) {
             if (overrides.from) {
@@ -7682,9 +7767,9 @@ function populateTransaction(contract, fragment, args) {
                 overrides.from = resolveProperties({
                     override: resolveName(contract.signer, overrides.from),
                     signer: contract.signer.getAddress()
-                }).then((check) => __awaiter$2(this, void 0, void 0, function* () {
+                }).then((check) => __awaiter(this, void 0, void 0, function* () {
                     if (getAddress(check.signer) !== check.override) {
-                        logger$d.throwError("Contract with a Signer cannot override from", Logger.errors.UNSUPPORTED_OPERATION, {
+                        logger.throwError("Contract with a Signer cannot override from", Logger.errors.UNSUPPORTED_OPERATION, {
                             operation: "overrides.from"
                         });
                     }
@@ -7729,6 +7814,12 @@ function populateTransaction(contract, fragment, args) {
         if (ro.from != null) {
             tx.from = ro.from;
         }
+        if (ro.type != null) {
+            tx.type = ro.type;
+        }
+        if (ro.accessList != null) {
+            tx.accessList = accessListify(ro.accessList);
+        }
         // If there was no "gasLimit" override, but the ABI specifies a default, use it
         if (tx.gasLimit == null && fragment.gas != null) {
             // Conmpute the intrinisic gas cost for this transaction
@@ -7750,7 +7841,7 @@ function populateTransaction(contract, fragment, args) {
         if (ro.value) {
             const roValue = BigNumber.from(ro.value);
             if (!roValue.isZero() && !fragment.payable) {
-                logger$d.throwError("non-payable method cannot override value", Logger.errors.UNSUPPORTED_OPERATION, {
+                logger.throwError("non-payable method cannot override value", Logger.errors.UNSUPPORTED_OPERATION, {
                     operation: "overrides.value",
                     value: overrides.value
                 });
@@ -7763,11 +7854,13 @@ function populateTransaction(contract, fragment, args) {
         delete overrides.gasPrice;
         delete overrides.from;
         delete overrides.value;
+        delete overrides.type;
+        delete overrides.accessList;
         // Make sure there are no stray overrides, which may indicate a
         // typo or using an unsupported key.
         const leftovers = Object.keys(overrides).filter((key) => (overrides[key] != null));
         if (leftovers.length) {
-            logger$d.throwError(`cannot override ${leftovers.map((l) => JSON.stringify(l)).join(",")}`, Logger.errors.UNSUPPORTED_OPERATION, {
+            logger.throwError(`cannot override ${leftovers.map((l) => JSON.stringify(l)).join(",")}`, Logger.errors.UNSUPPORTED_OPERATION, {
                 operation: "overrides",
                 overrides: leftovers
             });
@@ -7783,9 +7876,9 @@ function buildPopulate(contract, fragment) {
 function buildEstimate(contract, fragment) {
     const signerOrProvider = (contract.signer || contract.provider);
     return function (...args) {
-        return __awaiter$2(this, void 0, void 0, function* () {
+        return __awaiter(this, void 0, void 0, function* () {
             if (!signerOrProvider) {
-                logger$d.throwError("estimate require a provider or signer", Logger.errors.UNSUPPORTED_OPERATION, {
+                logger.throwError("estimate require a provider or signer", Logger.errors.UNSUPPORTED_OPERATION, {
                     operation: "estimateGas"
                 });
             }
@@ -7797,7 +7890,7 @@ function buildEstimate(contract, fragment) {
 function buildCall(contract, fragment, collapseSimple) {
     const signerOrProvider = (contract.signer || contract.provider);
     return function (...args) {
-        return __awaiter$2(this, void 0, void 0, function* () {
+        return __awaiter(this, void 0, void 0, function* () {
             // Extract the "blockTag" override if present
             let blockTag = undefined;
             if (args.length === fragment.inputs.length + 1 && typeof (args[args.length - 1]) === "object") {
@@ -7835,9 +7928,9 @@ function buildCall(contract, fragment, collapseSimple) {
 }
 function buildSend(contract, fragment) {
     return function (...args) {
-        return __awaiter$2(this, void 0, void 0, function* () {
+        return __awaiter(this, void 0, void 0, function* () {
             if (!contract.signer) {
-                logger$d.throwError("sending a transaction requires a signer", Logger.errors.UNSUPPORTED_OPERATION, {
+                logger.throwError("sending a transaction requires a signer", Logger.errors.UNSUPPORTED_OPERATION, {
                     operation: "sendTransaction"
                 });
             }
@@ -7970,7 +8063,7 @@ class FragmentRunningEvent extends RunningEvent {
         let topic = contractInterface.getEventTopic(fragment);
         if (topics) {
             if (topic !== topics[0]) {
-                logger$d.throwArgumentError("topic mismatch", "topics", topics);
+                logger.throwArgumentError("topic mismatch", "topics", topics);
             }
             filter.topics = topics.slice();
         }
@@ -8034,9 +8127,9 @@ class WildcardRunningEvent extends RunningEvent {
         }
     }
 }
-class Contract {
+class BaseContract {
     constructor(addressOrName, contractInterface, signerOrProvider) {
-        logger$d.checkNew(new.target, Contract);
+        logger.checkNew(new.target, Contract);
         // @TODO: Maybe still check the addressOrName looks like a valid address or name?
         //address = getAddress(address);
         defineReadOnly(this, "interface", getStatic((new.target), "getInterface")(contractInterface));
@@ -8053,7 +8146,7 @@ class Contract {
             defineReadOnly(this, "signer", null);
         }
         else {
-            logger$d.throwArgumentError("invalid signer or provider", "signerOrProvider", signerOrProvider);
+            logger.throwArgumentError("invalid signer or provider", "signerOrProvider", signerOrProvider);
         }
         defineReadOnly(this, "callStatic", {});
         defineReadOnly(this, "estimateGas", {});
@@ -8081,12 +8174,15 @@ class Contract {
                     defineReadOnly(this.filters, name, this.filters[filters[0]]);
                 }
                 else {
-                    logger$d.warn(`Duplicate definition of ${name} (${filters.join(", ")})`);
+                    logger.warn(`Duplicate definition of ${name} (${filters.join(", ")})`);
                 }
             });
         }
         defineReadOnly(this, "_runningEvents", {});
         defineReadOnly(this, "_wrappedEmits", {});
+        if (addressOrName == null) {
+            logger.throwArgumentError("invalid contract address or ENS name", "addressOrName", addressOrName);
+        }
         defineReadOnly(this, "address", addressOrName);
         if (this.provider) {
             defineReadOnly(this, "resolvedAddress", resolveName(this.provider, addressOrName));
@@ -8097,7 +8193,7 @@ class Contract {
             }
             catch (error) {
                 // Without a provider, we cannot use ENS names
-                logger$d.throwError("provider is required to use ENS name as contract address", Logger.errors.UNSUPPORTED_OPERATION, {
+                logger.throwError("provider is required to use ENS name as contract address", Logger.errors.UNSUPPORTED_OPERATION, {
                     operation: "new Contract"
                 });
             }
@@ -8109,7 +8205,7 @@ class Contract {
             // Check that the signature is unique; if not the ABI generation has
             // not been cleaned or may be incorrectly generated
             if (uniqueSignatures[signature]) {
-                logger$d.warn(`Duplicate ABI entry for ${JSON.stringify(name)}`);
+                logger.warn(`Duplicate ABI entry for ${JSON.stringify(name)}`);
                 return;
             }
             uniqueSignatures[signature] = true;
@@ -8148,9 +8244,13 @@ class Contract {
                 return;
             }
             const signature = signatures[0];
-            if (this[name] == null) {
-                defineReadOnly(this, name, this[signature]);
+            // If overwriting a member property that is null, swallow the error
+            try {
+                if (this[name] == null) {
+                    defineReadOnly(this, name, this[signature]);
+                }
             }
+            catch (e) { }
             if (this.functions[name] == null) {
                 defineReadOnly(this.functions, name, this.functions[signature]);
             }
@@ -8192,7 +8292,7 @@ class Contract {
                 // Otherwise, poll for our code to be deployed
                 this._deployedPromise = this.provider.getCode(this.address, blockTag).then((code) => {
                     if (code === "0x") {
-                        logger$d.throwError("contract not deployed", Logger.errors.UNSUPPORTED_OPERATION, {
+                        logger.throwError("contract not deployed", Logger.errors.UNSUPPORTED_OPERATION, {
                             contractAddress: this.address,
                             operation: "getDeployed"
                         });
@@ -8209,14 +8309,14 @@ class Contract {
     // estimateDeploy(bytecode: string, ...args): Promise<BigNumber>
     fallback(overrides) {
         if (!this.signer) {
-            logger$d.throwError("sending a transactions require a signer", Logger.errors.UNSUPPORTED_OPERATION, { operation: "sendTransaction(fallback)" });
+            logger.throwError("sending a transactions require a signer", Logger.errors.UNSUPPORTED_OPERATION, { operation: "sendTransaction(fallback)" });
         }
         const tx = shallowCopy(overrides || {});
         ["from", "to"].forEach(function (key) {
             if (tx[key] == null) {
                 return;
             }
-            logger$d.throwError("cannot override " + key, Logger.errors.UNSUPPORTED_OPERATION, { operation: key });
+            logger.throwError("cannot override " + key, Logger.errors.UNSUPPORTED_OPERATION, { operation: key });
         });
         tx.to = this.resolvedAddress;
         return this.deployed().then(() => {
@@ -8319,7 +8419,7 @@ class Contract {
     }
     _addEventListener(runningEvent, listener, once) {
         if (!this.provider) {
-            logger$d.throwError("events require a provider or a signer with a provider", Logger.errors.UNSUPPORTED_OPERATION, { operation: "once" });
+            logger.throwError("events require a provider or a signer with a provider", Logger.errors.UNSUPPORTED_OPERATION, { operation: "once" });
         }
         runningEvent.addListener(listener, once);
         // Track this running event and its listeners (may already be there; but no hard in updating)
@@ -8359,7 +8459,7 @@ class Contract {
         const filter = shallowCopy(runningEvent.filter);
         if (typeof (fromBlockOrBlockhash) === "string" && isHexString(fromBlockOrBlockhash, 32)) {
             if (toBlock != null) {
-                logger$d.throwArgumentError("cannot specify toBlock with blockhash", "toBlock", toBlock);
+                logger.throwArgumentError("cannot specify toBlock with blockhash", "toBlock", toBlock);
             }
             filter.blockHash = fromBlockOrBlockhash;
         }
@@ -8446,12 +8546,14 @@ class Contract {
         return this.off(eventName, listener);
     }
 }
+class Contract extends BaseContract {
+}
 
-const version$b = "ethers/5.0.29";
+const version = "ethers/5.1.0";
 
-new Logger(version$b);
+new Logger(version);
 
-var require$$0$1 = {
+var require$$0 = {
 	"1": {
 	exchangeV2: "0x080bf510fcbf18b91105470639e9561022937712",
 	exchange: "0x61935cbdd02287b511119ddb11aeb42f1593b7ef",
@@ -8706,7 +8808,7 @@ var __importDefault = (commonjsGlobal && commonjsGlobal.__importDefault) || func
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getContractAddressesForChainOrThrow = exports.ChainId = void 0;
-const addresses_json_1 = __importDefault(require$$0$1);
+const addresses_json_1 = __importDefault(require$$0);
 (function (ChainId) {
     ChainId[ChainId["Mainnet"] = 1] = "Mainnet";
     ChainId[ChainId["Ropsten"] = 3] = "Ropsten";
@@ -8731,7 +8833,7 @@ function getContractAddressesForChainOrThrow(chainId) {
     return chainToAddresses[chainId];
 }
 exports.getContractAddressesForChainOrThrow = getContractAddressesForChainOrThrow;
-
+//# sourceMappingURL=index.js.map
 });
 
 var zrxContractAddresses = /*@__PURE__*/getDefaultExportFromCjs(src);
@@ -8744,7 +8846,7 @@ const uniswap = {
 // 1 mainnet
 // 42 kovan
 // 7475 wapnet (CSSTestnet)
-({
+var contractAddresses = {
   1: {
     zrx: zrxContractAddresses[1],
     uniswap
@@ -8755,19 +8857,19 @@ const uniswap = {
   },
   7475: {
     uniswap: {
-      uniswapV1Exchange: '0xec16FDf36C412634996Ef7AcAF379c61068970Ca',
-      uniswapV1Factory: '0x190A7AC234472c94334516f51A6549aFAEC366F9',
-      uniswapV2Router02: '0x930Acbc372Bd73299Cd871AeFa610a93AE419573',
-      uniswapV2: '0x93aC90CEF71B46B6B8Cc810D3E825945c88F2C21'
+      uniswapV1Exchange: '0x9a256Dc79dc5f3aE303B453Dd19BfFc6c8aAaB94',
+      uniswapV1Factory: '0x41a7C7d0B37db9f141062414Cbc0Ba4bB6E8ac7e',
+      uniswapV2Router02: '0x147Ef17Df5204aC7E3193Eb49F2CEA75f9a3bE7B',
+      uniswapV2: '0xf53595F349Eb9ab2f3B09600618BAc92119Ba2cF',
     },
     zrx: {
-      stakingProxy: '0xD769A47cd943f78082eE4672cd2Bb1959C33fbBd',
-      staking: '0x83122e0C92A99074B77aA4797f0cd5F2252b866a',
-      zrxToken: '0x3ea3a770995Dc2439433fD994A58469868f6934c'
+      stakingProxy: '0xFf41bfb8289A655F9Afd10011D1D8178c77BE3f8',
+      staking: '0xd69BD7955fF5f8F304a2F5b225Cc158BC3e57C0a',
+      zrxToken: '0x0F48E776274fd3060b2D2998f9048dcAC43a1179'
     },
-    weth: '0x20B4F8ddAD0d2AeFF675ab3C61A469bAae0BbCC3'
+    weth: '0xA94365C1b9abAC2aBE959953155421A7C8fD3b12'
   }
-});
+};
 
 const networks = {
   MAINNET: 1,
@@ -8798,8 +8900,8 @@ const token = chainId => {
 };
 
 var index = (network, provider) => {
-  ChainId(network);
-  const contract = new Contract('0xA94365C1b9abAC2aBE959953155421A7C8fD3b12', abi, provider);
+  const chainId = ChainId(network);
+  const contract = new Contract(contractAddresses[chainId].weth, abi, provider);
 
   return {
     contract,

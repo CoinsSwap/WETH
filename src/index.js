@@ -33,7 +33,7 @@ const token = chainId => {
 
 export default (network, provider) => {
   const chainId = ChainId(network)
-  const contract = new Contract('0xA94365C1b9abAC2aBE959953155421A7C8fD3b12', abi, provider)
+  const contract = new Contract(contractAddresses[chainId].weth, abi, provider)
 
   return {
     contract,
