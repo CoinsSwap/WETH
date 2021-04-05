@@ -1,55 +1,46 @@
-import abi from './abi.js'
-import { Contract } from 'ethers'
+import abi from './../node_modules/@coinsswap/abis/abis/weth'
 
-const contracts = {
-  MAINNET: {
-    chainId: 1,
-    address: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
-  },
-  KOVAN: {
-    chainId: 42,
-    address: '0xd0A1E359811322d97991E03f863a0C30C2cF029C'
-  }
+import { Contract } from 'ethers'
+import contractAddresses from '@coinsswap/contract-address'
+
+const networks = {
+  MAINNET: 1,
+  KOVAN: 42,
+  WAPNET: 7475
 }
 
 /**
- * @param {Number, String} chainId
+ * @param {Number, String, Object} network{chainId} or networkname
  * @return {Number} Ethereum chainId
  */
-const ChainId = chainId => {
-  if (!chainId) return 'MAINNET'
-  if (isNaN(chainId)) return chainId
-  return Object.entries(contracts).filter(entry => {
-    entry[1].chainId === chainId ? entry[0] : false
-  })[0]
+const ChainId = network => {
+  if (!network) return 1
+  if (isNaN(network) && typeof network === 'object') return network.chainId
+  if (!isNaN(network) ) return network
+
+  return networks[network.toUpperCase()]
 }
 
 const token = chainId => {
-  const address = contracts[ChainId(chainId)].address
   return {
     chainId,
-    address,
+    address: contractsAddresses[chainId].weth,
     decimals: 18,
     symbol: 'WETH',
     name: 'Wrapped Ether'
   }
 }
 
-export default (chainId, provider) => {
-  chainId = ChainId(chainId)
-
-  const contract = new Contract(contracts[chainId].address, abi, provider)
-
-  const deposit = amount => contract.deposit(amount)
-  const withdraw = amount => contract.withdraw(amount)
+export default (network, provider) => {
+  const chainId = ChainId(network)
+  const contract = new Contract('0xA94365C1b9abAC2aBE959953155421A7C8fD3b12', abi, provider)
 
   return {
     contract,
-    abi,
     token,
-    deposit,
-    withdraw,
-    wrap: deposit,
-    unwrap: withdraw
+    deposit: contract.deposit,
+    withdraw: contract.withdraw,
+    wrap: contract.deposit,
+    unwrap: contract.withdraw
   }
 }

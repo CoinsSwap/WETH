@@ -2,7 +2,7 @@ const test = require('tape');
 const WETH = require('./');
 const ethers = require('ethers');
 
-const weth = WETH('KOVAN', ethers.getDefaultProvider('kovan'))
+const weth = WETH('wapnet', new ethers.providers.JsonRpcProvider('http://testnet.coinsswap.io:80'))
 
 test('WETH contract', async tape => {
   tape.plan(3)
