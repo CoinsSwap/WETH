@@ -7658,7 +7658,7 @@ class VoidSigner extends Signer {
     }
 }
 
-const version$2 = "transactions/5.1.0";
+const version$2 = "transactions/5.1.1";
 
 const logger$1 = new Logger(version$2);
 function accessSetify(addr, storageKeys) {
@@ -7695,7 +7695,7 @@ function accessListify(value) {
     return result;
 }
 
-const version$1 = "contracts/5.1.0";
+const version$1 = "contracts/5.1.1";
 
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -8393,7 +8393,7 @@ class BaseContract {
             delete this._runningEvents[runningEvent.tag];
             // If we have a poller for this, remove it
             const emit = this._wrappedEmits[runningEvent.tag];
-            if (emit) {
+            if (emit && runningEvent.filter) {
                 this.provider.off(runningEvent.filter, emit);
                 delete this._wrappedEmits[runningEvent.tag];
             }
@@ -8549,7 +8549,7 @@ class BaseContract {
 class Contract extends BaseContract {
 }
 
-const version = "ethers/5.1.0";
+const version = "ethers/5.1.2";
 
 new Logger(version);
 
@@ -8857,17 +8857,16 @@ var contractAddresses = {
   },
   7475: {
     uniswap: {
-      uniswapV1Exchange: '0x9a256Dc79dc5f3aE303B453Dd19BfFc6c8aAaB94',
-      uniswapV1Factory: '0x41a7C7d0B37db9f141062414Cbc0Ba4bB6E8ac7e',
-      uniswapV2Router02: '0x147Ef17Df5204aC7E3193Eb49F2CEA75f9a3bE7B',
-      uniswapV2: '0xf53595F349Eb9ab2f3B09600618BAc92119Ba2cF',
+      uniswapV2Router02: '0x5B576A652F70111EfA0eBFE1be0A0cC0501d8496',
+      uniswapV2Factory: '0x5249ef7bF26c73fdCF2C69F4c2943C6f81F0Af55',
     },
     zrx: {
       stakingProxy: '0xFf41bfb8289A655F9Afd10011D1D8178c77BE3f8',
       staking: '0xd69BD7955fF5f8F304a2F5b225Cc158BC3e57C0a',
-      zrxToken: '0x0F48E776274fd3060b2D2998f9048dcAC43a1179'
+      zrxToken: '0xdF0b61355d1dc4c11588Ea1214d34fE305225f1D'
     },
-    weth: '0xA94365C1b9abAC2aBE959953155421A7C8fD3b12'
+    cssToken: '0x29a969D4f6cd3C2A07a49d361FF705F11A1729E8',
+    weth: '0xcA5c8A04C67b6E12da21619e4BFe45C7e75ea7F2'
   }
 };
 

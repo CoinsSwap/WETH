@@ -1,4 +1,4 @@
-import abi from './../node_modules/@coinsswap/abis/abis/weth'
+import abi from './../node_modules/@coinsswap/abis/src/abis/weth'
 
 import { Contract } from 'ethers'
 import contractAddresses from '@coinsswap/contract-address'
