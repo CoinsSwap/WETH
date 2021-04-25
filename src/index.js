@@ -1,7 +1,8 @@
-import { weth } from '@coinsswap/abis'
+import abis from '@coinsswap/abis'
 import { Contract } from 'ethers'
 import contractAddresses from '@coinsswap/contract-address'
 
+const abi = abis.weth
 const networks = {
   MAINNET: 1,
   KOVAN: 42,
