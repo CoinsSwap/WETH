@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "@coinsswap/abis": "^0.1.8",
-    "@coinsswap/contract-address": "^0.1.5",
-    "ethers": "^5.1.2"
+    "@coinsswap/contract-address": "^0.1.7",
+    "ethers": "^5.1.3"
   }
 }

@@ -1,285 +1,5 @@
 'use strict';
 
-var abi = [
-  {
-    "constant": true,
-    "inputs": [],
-    "name": "name",
-    "outputs": [
-      {
-        "name": "",
-        "type": "string"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "constant": false,
-    "inputs": [
-      {
-        "name": "guy",
-        "type": "address"
-      },
-      {
-        "name": "wad",
-        "type": "uint256"
-      }
-    ],
-    "name": "approve",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [],
-    "name": "totalSupply",
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "constant": false,
-    "inputs": [
-      {
-        "name": "src",
-        "type": "address"
-      },
-      {
-        "name": "dst",
-        "type": "address"
-      },
-      {
-        "name": "wad",
-        "type": "uint256"
-      }
-    ],
-    "name": "transferFrom",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "constant": false,
-    "inputs": [
-      {
-        "name": "wad",
-        "type": "uint256"
-      }
-    ],
-    "name": "withdraw",
-    "outputs": [],
-    "payable": false,
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [],
-    "name": "decimals",
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint8"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [
-      {
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "name": "balanceOf",
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [],
-    "name": "symbol",
-    "outputs": [
-      {
-        "name": "",
-        "type": "string"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "constant": false,
-    "inputs": [
-      {
-        "name": "dst",
-        "type": "address"
-      },
-      {
-        "name": "wad",
-        "type": "uint256"
-      }
-    ],
-    "name": "transfer",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "constant": false,
-    "inputs": [],
-    "name": "deposit",
-    "outputs": [],
-    "payable": true,
-    "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [
-      {
-        "name": "",
-        "type": "address"
-      },
-      {
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "name": "allowance",
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "payable": true,
-    "stateMutability": "payable",
-    "type": "fallback"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "name": "src",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "name": "guy",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "name": "wad",
-        "type": "uint256"
-      }
-    ],
-    "name": "Approval",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "name": "src",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "name": "dst",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "name": "wad",
-        "type": "uint256"
-      }
-    ],
-    "name": "Transfer",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "name": "dst",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "name": "wad",
-        "type": "uint256"
-      }
-    ],
-    "name": "Deposit",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "name": "src",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "name": "wad",
-        "type": "uint256"
-      }
-    ],
-    "name": "Withdrawal",
-    "type": "event"
-  }
-];
-
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
 function getDefaultExportFromCjs (x) {
@@ -309,8 +29,8 @@ function createCommonjsModule(fn) {
 var _nodeResolve_empty = {};
 
 var _nodeResolve_empty$1 = /*#__PURE__*/Object.freeze({
-  __proto__: null,
-  'default': _nodeResolve_empty
+	__proto__: null,
+	'default': _nodeResolve_empty
 });
 
 var require$$0$1 = /*@__PURE__*/getAugmentedNamespace(_nodeResolve_empty$1);
@@ -4279,7 +3999,7 @@ function hexZeroPad(value, length) {
     return value;
 }
 
-const version$a = "bignumber/5.1.0";
+const version$a = "bignumber/5.1.1";
 
 var BN = bn.BN;
 const logger$d = new Logger(version$a);
@@ -4669,7 +4389,7 @@ class Description {
     }
 }
 
-const version$8 = "abi/5.1.0";
+const version$8 = "abi/5.1.1";
 
 const logger$b = new Logger(version$8);
 const _constructorGuard = {};
@@ -6440,6 +6160,17 @@ class ArrayCoder extends Coder {
         let count = this.length;
         if (count === -1) {
             count = reader.readValue().toNumber();
+            // Check that there is *roughly* enough data to ensure
+            // stray random data is not being read as a length. Each
+            // slot requires at least 32 bytes for their value (or 32
+            // bytes as a link to the data). This could use a much
+            // tighter bound, but we are erroring on the side of safety.
+            if (count * 32 > reader._data.length) {
+                logger$7.throwError("insufficient data length", Logger.errors.BUFFER_OVERRUN, {
+                    length: reader._data.length,
+                    count: count
+                });
+            }
         }
         let coders = [];
         for (let i = 0; i < count; i++) {
@@ -8549,7 +8280,7 @@ class BaseContract {
 class Contract extends BaseContract {
 }
 
-const version = "ethers/5.1.2";
+const version = "ethers/5.1.3";
 
 new Logger(version);
 
@@ -8849,15 +8580,17 @@ const uniswap = {
 var contractAddresses = {
   1: {
     zrx: zrxContractAddresses[1],
-    uniswap
+    uniswap,
+    weth: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
   },
   42: {
     zrx: zrxContractAddresses[42],
-    uniswap
+    uniswap,
+    weth: '0xd0a1e359811322d97991e03f863a0c30c2cf029c'
   },
   7475: {
     uniswap: {
-      uniswapV2Router02: '0x5B576A652F70111EfA0eBFE1be0A0cC0501d8496',
+      uniswapV2Router02: '0xDe099453Af235226a89faE53A7991b0dbFEe21CA',
       uniswapV2Factory: '0x5249ef7bF26c73fdCF2C69F4c2943C6f81F0Af55',
     },
     zrx: {
